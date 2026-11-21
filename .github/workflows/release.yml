@@ -3,7 +3,8 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]   # 每次推送都编译一次，提前发现问题（不发布）
+    tags: ["v*"]       # 打 v 标签时编译并发布
   workflow_dispatch:
 
 permissions:
@@ -23,7 +24,14 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" Info.plist
 
       - name: Build universal app
-        run: ./build.sh universal
+        run: |
+          echo "::notice::$(swiftc --version 2>&1 | head -1)"
+          set -o pipefail
+          if ! ./build.sh universal 2>&1 | tee build.log; then
+            # 把编译错误写成 annotation，不登录也能在网页/API 上看到
+            grep -E "error:" build.log | head -20 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
 
       - name: Zip
         run: ditto -c -k --keepParent build/FloatPlan.app FloatPlan.zip
