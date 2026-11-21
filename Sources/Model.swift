@@ -20,6 +20,8 @@ struct PlanTask: Identifiable, Codable, Equatable {
     var status: TaskStatus = .todo
     /// 每日重复：每天自动出现在新清单里，状态重置为未开始
     var repeatDaily = false
+    /// 从哪天顺延过来的（最早那天）；nil 表示是今天的正常任务
+    var carriedFrom: String?
 
     init(title: String, status: TaskStatus = .todo, repeatDaily: Bool = false) {
         self.title = title
@@ -27,7 +29,7 @@ struct PlanTask: Identifiable, Codable, Equatable {
         self.repeatDaily = repeatDaily
     }
 
-    enum CodingKeys: String, CodingKey { case id, title, status, repeatDaily }
+    enum CodingKeys: String, CodingKey { case id, title, status, repeatDaily, carriedFrom }
 
     // 兼容旧版数据：缺少的字段用默认值
     init(from decoder: Decoder) throws {
@@ -36,6 +38,7 @@ struct PlanTask: Identifiable, Codable, Equatable {
         title = try c.decode(String.self, forKey: .title)
         status = try c.decodeIfPresent(TaskStatus.self, forKey: .status) ?? .todo
         repeatDaily = try c.decodeIfPresent(Bool.self, forKey: .repeatDaily) ?? false
+        carriedFrom = try c.decodeIfPresent(String.self, forKey: .carriedFrom)
     }
 }
 
@@ -75,6 +78,26 @@ enum DayClock {
         f.locale = Locale(identifier: L10n.lang == .zh ? "zh_CN" : "en_US")
         f.dateFormat = short ? "M.d EEE" : "yyyy.MM.dd EEE"
         return f.string(from: d)
+    }
+
+    /// "2026-11" → 2026年11月 / November 2026
+    static func monthTitle(_ month: String) -> String {
+        guard let d = keyFormatter.date(from: month + "-01") else { return month }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: L10n.lang == .zh ? "zh_CN" : "en_US")
+        f.dateFormat = L10n.lang == .zh ? "yyyy年M月" : "MMMM yyyy"
+        return f.string(from: d)
+    }
+
+    /// 两个日期之间差几天
+    static func daysBetween(_ a: String, _ b: String) -> Int {
+        guard let da = keyFormatter.date(from: a), let db = keyFormatter.date(from: b) else { return 0 }
+        return max(0, Calendar(identifier: .gregorian).dateComponents([.day], from: da, to: db).day ?? 0)
+    }
+
+    /// "2026" → 2026年 / 2026
+    static func yearTitle(_ year: String) -> String {
+        L10n.lang == .zh ? "\(year)年" : year
     }
 }
 
@@ -152,19 +175,84 @@ final class TaskStore: ObservableObject {
             if history.count > Self.historyLimit { history.removeLast(history.count - Self.historyLimit) }
         }
 
+        let yesterday = day
         let carried: [PlanTask] = tasks.compactMap { t in
             if t.repeatDaily {
                 var n = t
                 n.status = .todo
+                n.carriedFrom = nil
                 return n
             }
-            return t.status == .done ? nil : t
+            guard t.status != .done else { return nil }   // 完成的不顺延
+            var n = t
+            n.carriedFrom = t.carriedFrom ?? yesterday      // 进行中、未开始的顺延，记下最早是哪天的
+            return n
         }
 
         day = today
         tasks = carried          // 触发保存
-        onNewDay?(carried.count)
+        onNewDay?(carried.filter { $0.carriedFrom != nil }.count)
         return true
+    }
+
+    // MARK: 历史窗口用：按日期编辑任意一天
+
+    /// 今天 + 过去，按日期从新到旧
+    var allDays: [DayPlan] { [DayPlan(date: day, tasks: tasks)] + history }
+
+    func updateTask(on date: String, id: UUID, _ change: (inout PlanTask) -> Void) {
+        if date == day {
+            if let i = tasks.firstIndex(where: { $0.id == id }) { change(&tasks[i]) }
+            return
+        }
+        guard let d = history.firstIndex(where: { $0.date == date }),
+              let i = history[d].tasks.firstIndex(where: { $0.id == id }) else { return }
+        change(&history[d].tasks[i])
+        save()
+    }
+
+    func removeTask(on date: String, id: UUID) {
+        if date == day { remove(id); return }
+        guard let d = history.firstIndex(where: { $0.date == date }) else { return }
+        history[d].tasks.removeAll { $0.id == id }
+        if history[d].tasks.isEmpty { history.remove(at: d) }   // 过去某天删空了就不再显示
+        save()
+    }
+
+    func addTask(on date: String, title: String) {
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        if date == day { tasks.append(PlanTask(title: t)); return }
+        guard let d = history.firstIndex(where: { $0.date == date }) else { return }
+        history[d].tasks.append(PlanTask(title: t))
+        save()
+    }
+
+    /// 顺延任务点一下：变成今天的普通待办（未开始，去掉顺延标记）
+    func acceptCarried(_ id: UUID) {
+        if let i = tasks.firstIndex(where: { $0.id == id }) {
+            tasks[i].carriedFrom = nil
+            tasks[i].status = .todo
+        }
+    }
+
+    /// 某个任务是否已经在今天的清单里（顺延的任务和原任务 id 相同）
+    func isInToday(_ id: UUID) -> Bool { tasks.contains { $0.id == id } }
+
+    /// 把过去某天的任务加到今天，作为未开始的待办
+    func copyToToday(from date: String, id: UUID) {
+        guard date != day, !isInToday(id),
+              let d = history.first(where: { $0.date == date }),
+              var t = d.tasks.first(where: { $0.id == id }) else { return }
+        t.status = .todo
+        t.carriedFrom = nil
+        tasks.append(t)
+    }
+
+    /// 顺延了几天
+    func carriedDays(_ t: PlanTask) -> Int {
+        guard let from = t.carriedFrom else { return 0 }
+        return DayClock.daysBetween(from, day)
     }
 
     /// 当前任务：第一条“进行中”，没有的话就是第一条“未开始”

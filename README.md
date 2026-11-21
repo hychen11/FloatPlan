@@ -19,10 +19,10 @@ FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks 
   - ▶ In progress: bold black
   - ○ To do: blue
 - **One list per day.** The header shows the date (e.g. `2026.11.20 Fri · 2/5`), and a new list starts automatically when the day changes:
-  - Unfinished tasks carry over to the new day; finished ones go to history.
+  - Unfinished tasks (to do or in progress) carry over to the new day with an orange **↪ carried over** tag; finished ones stay in history. Click the tag in edit mode to make it a regular to-do for today.
   - Tasks marked 🔁 **repeat daily** (exercise, reading…) come back every day, reset to to-do.
   - Choose when a new day starts (midnight or 3–6 AM), so the list doesn't flip while you're still up.
-  - Browse the last 14 days from the menu bar.
+- **Plan History window**, Reminders-style: filter by Done / In Progress / To Do, browse by day, month or year, search, and edit any past day. Send an unfinished task from a past day to today with **→ Today**. For a quick look, hover over **Last 14 Days** in the menu bar.
 - **Click-through.** The overlay never blocks your clicks.
 - **Visible everywhere.** It shows on every desktop (Space) and over full-screen apps.
 - **Edit with a shortcut.** Press `⌥⌘P` to edit, press it again to go back to click-through mode.
@@ -31,6 +31,8 @@ FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks 
 - **Reminders.** Every 15, 30 or 60 minutes, the current task drifts across the screen in large text, together with a system notification.
 
 ![Reminder banner](docs/danmaku.png)
+
+![Plan History window](docs/history.png)
 
 ## Install
 
@@ -58,7 +60,9 @@ Requires macOS 13 or later. Runs natively on Apple silicon and Intel.
 | Adjust opacity | Menu bar ☑ → Background / Text sliders |
 | Reminders | Menu bar ☑ → Reminders |
 | When a new day starts | Menu bar ☑ → New Day Starts At |
-| Past days | Menu bar ☑ → History |
+| Past days | Menu bar ☑ → Plan History… (`⌘Y` while the menu is open), or hover Last 14 Days |
+| Bring back an old task | Plan History → **→ Today** next to it, or right-click → Add to Today |
+| Accept a carried-over task | Edit mode → click the orange **↪ carried over** tag |
 | Language | Menu bar ☑ → 语言 / Language → 中文 or English |
 
 > On a MacBook with a notch, the ☑ icon can end up hidden behind the notch when the menu bar is crowded. `⌥⌘P` works either way.

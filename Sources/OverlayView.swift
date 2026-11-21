@@ -80,6 +80,9 @@ struct OverlayView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .opacity(0.7)
             }
+            if task.carriedFrom != nil {
+                CarriedTag(days: store.carriedDays(task))
+            }
         }
         .font(.system(size: task.status == .doing ? 16 : 14,
                       weight: task.status == .doing ? .bold : .regular))
@@ -108,6 +111,14 @@ struct OverlayView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 14, weight: task.status == .doing ? .bold : .regular))
                 .foregroundColor(statusColor(task.status))
+
+            if task.carriedFrom != nil {
+                Button { store.acceptCarried(task.id) } label: {
+                    CarriedTag(days: store.carriedDays(task))
+                }
+                .buttonStyle(.plain)
+                .help(tr("点击变成今天的待办（未开始）", "Click to make it a to-do for today"))
+            }
 
             Button { store.toggleRepeat(task.id) } label: {
                 Image(systemName: "repeat")
@@ -169,6 +180,20 @@ struct OverlayView: View {
 
     private func setStatus(_ id: UUID, _ s: TaskStatus) {
         if let i = store.tasks.firstIndex(where: { $0.id == id }) { store.tasks[i].status = s }
+    }
+}
+
+/// 顺延提醒：橙色小标签
+struct CarriedTag: View {
+    let days: Int
+    var body: some View {
+        Text(days <= 1 ? tr("↪ 顺延", "↪ carried over") : tr("↪ 顺延 \(days) 天", "↪ carried \(days) days"))
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(Color.orange))
+            .fixedSize()
     }
 }
 

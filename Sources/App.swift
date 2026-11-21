@@ -35,6 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         registerHotKey()
         scheduleReminder()
         setupDayRollover()
+        setupMainMenu()
+        ui.$lang.dropFirst().receive(on: RunLoop.main)
+            .sink { [weak self] _ in DispatchQueue.main.async { self?.languageChanged() } }
+            .store(in: &cancellables)
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
@@ -45,8 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private func setupDayRollover() {
         store.onNewDay = { [weak self] carried in
             self?.showDanmaku(carried > 0
-                ? tr("🌅 新的一天！带过来 \(carried) 项任务",
-                     "🌅 A new day! \(carried) task\(carried == 1 ? "" : "s") carried over")
+                ? tr("🌅 新的一天！有 \(carried) 项没做完的任务顺延到今天",
+                     "🌅 A new day! \(carried) unfinished task\(carried == 1 ? "" : "s") carried over")
                 : tr("🌅 新的一天！", "🌅 A new day!"))
         }
         store.checkNewDay()   // 启动时（比如隔天才开电脑）
@@ -108,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     func windowDidMove(_ notification: Notification) {
+        guard (notification.object as? NSWindow) === panel else { return }
         defaults.set(Double(panel.frame.minX), forKey: "panelLeft")
         defaults.set(Double(panel.frame.maxY), forKey: "panelTop")
     }
@@ -215,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         dayStart.submenu = dSub
         menu.addItem(dayStart)
 
-        menu.addItem(historyItem())
+        historyItems().forEach { menu.addItem($0) }
 
         // 语言：标题两种语言都写，切错了也找得回来
         let langItem = NSMenuItem(title: "语言 / Language", action: nil, keyEquivalent: "")
@@ -243,6 +248,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func openRepo() { if let u = URL(string: Links.repo) { NSWorkspace.shared.open(u) } }
 
+    // MARK: - 历史窗口
+
+    private var historyWindow: NSWindow?
+
+    @objc func openHistory() {
+        if historyWindow == nil {
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 900, height: 620),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered, defer: false)
+            w.contentViewController = NSHostingController(rootView: HistoryView(store: store, ui: ui))
+            w.isReleasedWhenClosed = false
+            w.delegate = self
+            w.setContentSize(NSSize(width: 900, height: 620))
+            if !w.setFrameUsingName("FloatPlanHistory") { w.center() }
+            w.setFrameAutosaveName("FloatPlanHistory")
+            historyWindow = w
+        }
+        historyWindow?.title = tr("历史计划", "Plan History")
+        // 窗口打开时出现在 Dock 和 ⌘Tab 里，关掉后恢复成只在菜单栏
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        historyWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard (notification.object as? NSWindow) === historyWindow else { return }
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    private func languageChanged() {
+        setupMainMenu()
+        historyWindow?.title = tr("历史计划", "Plan History")
+    }
+
+    // MARK: - 主菜单（窗口里的 ⌘C ⌘V ⌘Z ⌘A ⌘W 靠它生效）
+
+    private func setupMainMenu() {
+        let main = NSMenu()
+
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: tr("历史计划…", "Plan History…"), action: #selector(openHistory), keyEquivalent: "y").target = self
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: tr("退出 FloatPlan", "Quit FloatPlan"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appItem.submenu = appMenu
+        main.addItem(appItem)
+
+        let editItem = NSMenuItem()
+        let edit = NSMenu(title: tr("编辑", "Edit"))
+        edit.addItem(withTitle: tr("撤销", "Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: tr("重做", "Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: tr("剪切", "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: tr("拷贝", "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: tr("粘贴", "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: tr("全选", "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = edit
+        main.addItem(editItem)
+
+        let winItem = NSMenuItem()
+        let win = NSMenu(title: tr("窗口", "Window"))
+        win.addItem(withTitle: tr("最小化", "Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        win.addItem(withTitle: tr("关闭", "Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        winItem.submenu = win
+        main.addItem(winItem)
+
+        NSApp.mainMenu = main
+    }
+
     @objc private func setLanguage(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let l = Lang(rawValue: raw) { ui.lang = l }
     }
@@ -252,9 +327,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         store.checkNewDay()
     }
 
-    /// 历史记录：最近 14 天，每天一个子菜单列出当天的任务
-    private func historyItem() -> NSMenuItem {
-        let item = NSMenuItem(title: tr("历史记录", "History"), action: nil, keyEquivalent: "")
+    /// 历史：一个打开完整窗口的菜单项 + 一个悬停浏览最近 14 天的子菜单
+    private func historyItems() -> [NSMenuItem] {
+        let open = NSMenuItem(title: tr("历史计划…", "Plan History…"), action: #selector(openHistory), keyEquivalent: "y")
+        open.target = self
+        return [open, recentItem()]
+    }
+
+    private func recentItem() -> NSMenuItem {
+        let item = NSMenuItem(title: tr("最近 14 天", "Last 14 Days"), action: nil, keyEquivalent: "")
         let sub = NSMenu()
         if store.history.isEmpty {
             sub.addItem(NSMenuItem(title: tr("还没有历史记录（明天开始会有）", "No history yet (starts tomorrow)"), action: nil, keyEquivalent: ""))
