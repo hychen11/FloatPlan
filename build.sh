@@ -39,4 +39,4 @@ cp Info.plist "$APP/Contents/Info.plist"
 # 本机签名（ad-hoc）。没有付费开发者账号时只能这样，用户首次打开需手动放行
 codesign --force --sign - "$APP" >/dev/null
 
-echo "✅ 编译完成：$APP（$(lipo -archs "$BIN")）"
+echo "✅ 编译完成：${APP}（$(lipo -archs "$BIN")）"
