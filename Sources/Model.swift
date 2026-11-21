@@ -3,6 +3,8 @@ import Combine
 
 enum TaskStatus: String, Codable {
     case todo, doing, done
+    /// 放弃：不做了。不在点击循环里（避免误点），用右键菜单设置
+    case dropped
 
     /// 点击状态图标时的循环顺序：未开始 → 进行中 → 已完成 → 未开始
     var next: TaskStatus {
@@ -10,8 +12,12 @@ enum TaskStatus: String, Codable {
         case .todo: return .doing
         case .doing: return .done
         case .done: return .todo
+        case .dropped: return .todo
         }
     }
+
+    /// 已经结束（完成或放弃）：不顺延
+    var isClosed: Bool { self == .done || self == .dropped }
 }
 
 struct PlanTask: Identifiable, Codable, Equatable {
@@ -47,6 +53,8 @@ struct DayPlan: Codable, Equatable {
     var date: String          // yyyy-MM-dd
     var tasks: [PlanTask]
     var doneCount: Int { tasks.filter { $0.status == .done }.count }
+    /// 算进度的总数：放弃的不算
+    var countable: Int { tasks.filter { $0.status != .dropped }.count }
 }
 
 /// 日期工具。“一天从几点开始”可设置，熬夜时清单不会在零点突然换掉
@@ -183,7 +191,7 @@ final class TaskStore: ObservableObject {
                 n.carriedFrom = nil
                 return n
             }
-            guard t.status != .done else { return nil }   // 完成的不顺延
+            guard !t.status.isClosed else { return nil }   // 完成、放弃的不顺延
             var n = t
             n.carriedFrom = t.carriedFrom ?? yesterday      // 进行中、未开始的顺延，记下最早是哪天的
             return n
@@ -261,6 +269,7 @@ final class TaskStore: ObservableObject {
     }
 
     var doneCount: Int { tasks.filter { $0.status == .done }.count }
+    var countable: Int { tasks.filter { $0.status != .dropped }.count }
 
     func add(_ title: String) {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)

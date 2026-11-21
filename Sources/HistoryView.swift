@@ -25,7 +25,7 @@ enum Granularity: String, CaseIterable {
 
 /// 按状态筛选（左上角四个方块）
 enum StatusFilter: String, CaseIterable {
-    case all, done, doing, todo
+    case all, done, doing, todo, dropped
 
     var title: String {
         switch self {
@@ -33,6 +33,7 @@ enum StatusFilter: String, CaseIterable {
         case .done: return tr("已完成", "Done")
         case .doing: return tr("进行中", "In Progress")
         case .todo: return tr("未开始", "To Do")
+        case .dropped: return tr("已放弃", "Given Up")
         }
     }
 
@@ -42,6 +43,7 @@ enum StatusFilter: String, CaseIterable {
         case .done: return "checkmark.circle.fill"
         case .doing: return "play.circle.fill"
         case .todo: return "circle"
+        case .dropped: return "nosign"
         }
     }
 
@@ -51,6 +53,7 @@ enum StatusFilter: String, CaseIterable {
         case .done: return .gray
         case .doing: return .orange
         case .todo: return .blue
+        case .dropped: return droppedTint
         }
     }
 
@@ -60,12 +63,16 @@ enum StatusFilter: String, CaseIterable {
         case .done: return s == .done
         case .doing: return s == .doing
         case .todo: return s == .todo
+        case .dropped: return s == .dropped
         }
     }
 }
 
+private let droppedTint = Color(red: 0.82, green: 0.38, blue: 0.38)
+
 private func statusIcon(_ s: TaskStatus) -> String {
     switch s {
+    case .dropped: return "nosign"
     case .done: return "checkmark.circle.fill"
     case .doing: return "play.circle.fill"
     case .todo: return "circle"
@@ -74,6 +81,7 @@ private func statusIcon(_ s: TaskStatus) -> String {
 
 private func statusTint(_ s: TaskStatus) -> Color {
     switch s {
+    case .dropped: return droppedTint
     case .done: return .gray
     case .doing: return .orange
     case .todo: return .blue
@@ -125,8 +133,11 @@ struct HistoryView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 10) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
-                ForEach(StatusFilter.allCases, id: \.self) { tile($0) }
+            VStack(spacing: 8) {
+                tile(.all)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
+                    ForEach([StatusFilter.done, .doing, .todo, .dropped], id: \.self) { tile($0) }
+                }
             }
             .padding(.horizontal, 12)
             .padding(.top, 14)
@@ -205,7 +216,7 @@ struct HistoryView: View {
     }
 
     private func periodRow(key: String, title: String, plans: [DayPlan]) -> some View {
-        let total = plans.reduce(0) { $0 + $1.tasks.count }
+        let total = plans.reduce(0) { $0 + $1.countable }
         let done = plans.reduce(0) { $0 + $1.doneCount }
         let on = (period ?? "*") == key
         return Button { period = key } label: {
@@ -279,7 +290,8 @@ struct HistoryView: View {
     private var header: some View {
         let ts = periodDays.flatMap(\.tasks)
         let done = ts.filter { $0.status == .done }.count
-        let rate = ts.isEmpty ? 0 : Double(done) / Double(ts.count)
+        let countable = ts.filter { $0.status != .dropped }.count
+        let rate = countable == 0 ? 0 : Double(done) / Double(countable)
         let periodName = periodKey.isEmpty ? tr("全部时间", "All Time") : periodTitle(periodKey)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -302,6 +314,7 @@ struct HistoryView: View {
                 stat(StatusFilter.done.title, "\(done)", StatusFilter.done.color)
                 stat(StatusFilter.doing.title, "\(ts.filter { $0.status == .doing }.count)", StatusFilter.doing.color)
                 stat(StatusFilter.todo.title, "\(ts.filter { $0.status == .todo }.count)", StatusFilter.todo.color)
+                stat(StatusFilter.dropped.title, "\(ts.filter { $0.status == .dropped }.count)", StatusFilter.dropped.color)
             }
             ProgressView(value: rate).progressViewStyle(.linear)
         }
@@ -327,7 +340,7 @@ struct HistoryView: View {
                     .background(Capsule().fill(Color.accentColor))
             }
             Spacer()
-            Text("\(d.doneCount)/\(d.tasks.count)").monospacedDigit().foregroundColor(.secondary)
+            Text("\(d.doneCount)/\(d.countable)").monospacedDigit().foregroundColor(.secondary)
         }
     }
 
@@ -349,7 +362,7 @@ struct HistoryView: View {
                 set: { v in store.updateTask(on: day, id: t.id) { $0.title = v } }))
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: t.status == .doing ? .semibold : .regular))
-                .foregroundColor(t.status == .done ? .secondary : .primary)
+                .foregroundColor(t.status.isClosed ? .secondary : .primary)
 
             if isToday && t.carriedFrom != nil {
                 Button { store.acceptCarried(t.id) } label: { CarriedTag(days: store.carriedDays(t)) }
@@ -358,7 +371,7 @@ struct HistoryView: View {
             }
 
             // 过去没做完的任务：一键加到今天
-            if !isToday && t.status != .done {
+            if !isToday && !t.status.isClosed {
                 if store.isInToday(t.id) {
                     Text(tr("已在今天", "In today"))
                         .font(.system(size: 11))
@@ -388,6 +401,7 @@ struct HistoryView: View {
             Button(tr("标为已完成", "Mark as Done")) { store.updateTask(on: day, id: t.id) { $0.status = .done } }
             Button(tr("标为进行中", "Mark as In Progress")) { store.updateTask(on: day, id: t.id) { $0.status = .doing } }
             Button(tr("标为未开始", "Mark as To Do")) { store.updateTask(on: day, id: t.id) { $0.status = .todo } }
+            Button(tr("放弃", "Give Up")) { store.updateTask(on: day, id: t.id) { $0.status = .dropped } }
             if !isToday && t.status != .done && !store.isInToday(t.id) {
                 Divider()
                 Button(tr("加到今天", "Add to Today")) { store.copyToToday(from: day, id: t.id) }

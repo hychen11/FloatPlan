@@ -5,6 +5,7 @@ import AppKit
 func statusColor(_ s: TaskStatus) -> Color {
     switch s {
     case .done: return Color(white: 0.55)
+    case .dropped: return Color(red: 0.80, green: 0.42, blue: 0.42)
     case .doing: return .black
     case .todo: return Color(red: 0.10, green: 0.42, blue: 0.95)
     }
@@ -13,6 +14,7 @@ func statusColor(_ s: TaskStatus) -> Color {
 func statusSymbol(_ s: TaskStatus) -> String {
     switch s {
     case .done: return "✓"
+    case .dropped: return "⊘"
     case .doing: return "▶"
     case .todo: return "○"
     }
@@ -31,17 +33,24 @@ struct OverlayView: View {
             }
             if ui.editing { addRow; hint }
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .frame(width: 300, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(ui.editing ? 0.92 : ui.bgOpacity))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(ui.editing ? 0.94 : ui.bgOpacity))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.black.opacity(ui.editing ? 0.25 : 0), lineWidth: 1)
+            // 细边：编辑时深一点；平时有背景时是一圈淡白色高光
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(ui.editing ? Color.black.opacity(0.18)
+                              : Color.white.opacity(ui.bgOpacity > 0.05 ? 0.45 : 0), lineWidth: 1)
         )
         .environment(\.colorScheme, .light)
+    }
+
+    private var progress: Double {
+        store.countable == 0 ? 0 : Double(store.doneCount) / Double(store.countable)
     }
 
     // MARK: 标题栏
@@ -58,11 +67,31 @@ struct OverlayView: View {
                     .keyboardShortcut(.defaultAction)
             }
         } else {
-            Text("\(DayClock.display(store.day))  ·  \(store.doneCount)/\(store.tasks.count)")
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(DayClock.display(store.day))
+                    Spacer()
+                    Text("\(store.doneCount)/\(store.countable)").monospacedDigit()
+                }
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(Color(white: 0.35))
+                .foregroundColor(Color(white: 0.32))
                 .shadow(color: .white, radius: 1)
-                .opacity(ui.textOpacity)
+
+                // 今日进度条
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.55))
+                        Capsule()
+                            .fill(LinearGradient(colors: [Color(red: 0.25, green: 0.55, blue: 1.0),
+                                                          Color(red: 0.20, green: 0.78, blue: 0.55)],
+                                                 startPoint: .leading, endPoint: .trailing))
+                            .frame(width: g.size.width * progress)
+                    }
+                }
+                .frame(height: 3)
+                .padding(.bottom, 2)
+            }
+            .opacity(ui.textOpacity)
         }
     }
 
@@ -73,7 +102,7 @@ struct OverlayView: View {
             Text(statusSymbol(task.status))
                 .frame(width: 14)
             Text(task.title)
-                .strikethrough(task.status == .done)
+                .strikethrough(task.status.isClosed)
                 .fixedSize(horizontal: false, vertical: true)
             if task.repeatDaily {
                 Image(systemName: "repeat")
@@ -134,6 +163,17 @@ struct OverlayView: View {
             iconButton("chevron.down") { store.move(task.id, by: 1) }
             iconButton("xmark.circle.fill") { store.remove(task.id) }
         }
+        .contextMenu { statusMenu(task) }
+    }
+
+    /// 右键菜单：直接设成某个状态（“放弃”只在这里）
+    @ViewBuilder private func statusMenu(_ task: PlanTask) -> some View {
+        Button(tr("✓ 标为已完成", "✓ Mark as Done")) { setStatus(task.id, .done) }
+        Button(tr("▶ 标为进行中", "▶ Mark as In Progress")) { setStatus(task.id, .doing) }
+        Button(tr("○ 标为未开始", "○ Mark as To Do")) { setStatus(task.id, .todo) }
+        Button(tr("⊘ 放弃", "⊘ Give Up")) { setStatus(task.id, .dropped) }
+        Divider()
+        Button(tr("删除", "Delete")) { store.remove(task.id) }
     }
 
     private var addRow: some View {
@@ -152,8 +192,8 @@ struct OverlayView: View {
     }
 
     private var hint: some View {
-        Text(tr("⌥⌘P 退出编辑 · 点左侧图标切换状态 · 🔁 每日重复",
-                "⌥⌘P to finish · click the left icon to change state · 🔁 repeat daily"))
+        Text(tr("⌥⌘P 退出编辑 · 点左侧图标切换状态 · 右键可放弃 · 🔁 每日重复",
+                "⌥⌘P to finish · click the left icon to change state · right-click to give up · 🔁 repeat daily"))
             .font(.system(size: 10))
             .foregroundColor(.secondary)
             .padding(.top, 2)
@@ -207,16 +247,60 @@ struct DragHandle: NSViewRepresentable {
 }
 
 /// 弹幕文字
+/// 弹幕的几种样子：标签文字 + 颜色
+enum DanmakuKind {
+    case doing, upNext, newDay, allDone
+
+    var label: String {
+        switch self {
+        case .doing: return tr("正在做", "Now")
+        case .upNext: return tr("下一项", "Up next")
+        case .newDay: return tr("新的一天", "New day")
+        case .allDone: return tr("完成", "Done")
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .doing: return Color(red: 1.0, green: 0.58, blue: 0.15)
+        case .upNext: return Color(red: 0.22, green: 0.52, blue: 1.0)
+        case .newDay: return Color(red: 0.45, green: 0.40, blue: 0.95)
+        case .allDone: return Color(red: 0.20, green: 0.75, blue: 0.45)
+        }
+    }
+}
+
+/// 弹幕：半透明深色胶囊，左边彩色标签，中间文字，右边进度
 struct DanmakuText: View {
+    let kind: DanmakuKind
     let text: String
+    var trailing: String? = nil
+
     var body: some View {
-        Text(text)
-            .font(.system(size: 28, weight: .heavy))
-            .foregroundColor(.white)
-            .shadow(color: .black, radius: 1.5)
-            .shadow(color: .black, radius: 3)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .fixedSize()
+        HStack(spacing: 12) {
+            Text(kind.label)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(kind.color))
+            Text(text)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.white)
+            if let trailing {
+                Text(trailing)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(.white.opacity(0.65))
+            }
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 20)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Color.black.opacity(0.62)))
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+        .padding(16)          // 给阴影留空间
+        .fixedSize()
     }
 }

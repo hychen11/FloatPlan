@@ -48,10 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     private func setupDayRollover() {
         store.onNewDay = { [weak self] carried in
-            self?.showDanmaku(carried > 0
-                ? tr("🌅 新的一天！有 \(carried) 项没做完的任务顺延到今天",
-                     "🌅 A new day! \(carried) unfinished task\(carried == 1 ? "" : "s") carried over")
-                : tr("🌅 新的一天！", "🌅 A new day!"))
+            self?.showDanmaku(.newDay, carried > 0
+                ? tr("有 \(carried) 项没做完的任务顺延到今天",
+                     "\(carried) unfinished task\(carried == 1 ? "" : "s") carried over to today")
+                : tr("开始今天的计划吧", "Time to plan your day"))
         }
         store.checkNewDay()   // 启动时（比如隔天才开电脑）
 
@@ -342,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         for d in store.history.prefix(14) {
             let dayItem = NSMenuItem(
-                title: "\(DayClock.display(d.date, short: true))    \(tr("完成", "done")) \(d.doneCount)/\(d.tasks.count)",
+                title: "\(DayClock.display(d.date, short: true))    \(tr("完成", "done")) \(d.doneCount)/\(d.countable)",
                 action: nil, keyEquivalent: "")
             let tasksMenu = NSMenu()
             for t in d.tasks {
@@ -405,13 +405,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc func fireReminder() {
         guard let task = store.currentTask else {
-            showDanmaku(tr("🎉 今天的任务全部完成了！", "🎉 All done for today!"))
+            showDanmaku(.allDone, tr("今天的任务全部完成了", "All done for today"))
             return
         }
-        let prefix = task.status == .doing ? tr("⏰ 正在做", "⏰ Now doing") : tr("⏰ 该开始", "⏰ Up next")
-        let progress = "\(store.doneCount)/\(store.tasks.count)"
-        showDanmaku(tr("\(prefix)：\(task.title)   （\(progress)）",
-                       "\(prefix): \(task.title)   (\(progress))"))
+        let kind: DanmakuKind = task.status == .doing ? .doing : .upNext
+        let prefix = kind.label
+        showDanmaku(kind, task.title, trailing: "\(store.doneCount)/\(store.countable)")
 
         let content = UNMutableNotificationContent()
         content.title = prefix
@@ -420,9 +419,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
-    private func showDanmaku(_ text: String) {
+    private func showDanmaku(_ kind: DanmakuKind, _ text: String, trailing: String? = nil) {
         guard let screen = NSScreen.main else { return }
-        let host = NSHostingView(rootView: DanmakuText(text: text))
+        let host = NSHostingView(rootView: DanmakuText(kind: kind, text: text, trailing: trailing))
         let size = host.fittingSize
         let sf = screen.frame
         let y = sf.minY + sf.height * CGFloat.random(in: 0.55...0.8)

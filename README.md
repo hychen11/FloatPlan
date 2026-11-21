@@ -14,10 +14,11 @@ FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks 
 
 ## Features
 
-- **Three states, easy to read**
+- **Four states, easy to read**
   - ✓ Done: gray, struck through
   - ▶ In progress: bold black
   - ○ To do: blue
+  - ⊘ Given up: muted red, struck through. Set it from the right-click menu so you never hit it by accident; it doesn't count toward your progress and doesn't carry over.
 - **One list per day.** The header shows the date (e.g. `2026.11.20 Fri · 2/5`), and a new list starts automatically when the day changes:
   - Unfinished tasks (to do or in progress) carry over to the new day with an orange **↪ carried over** tag; finished ones stay in history. Click the tag in edit mode to make it a regular to-do for today.
   - Tasks marked 🔁 **repeat daily** (exercise, reading…) come back every day, reset to to-do.
@@ -28,7 +29,7 @@ FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks 
 - **Edit with a shortcut.** Press `⌥⌘P` to edit, press it again to go back to click-through mode.
 - **Opacity sliders.** Adjust the background and the text separately, with a live preview.
 - **English and Chinese.** Follows your system language on first launch; switch any time from the menu bar.
-- **Reminders.** Every 15, 30 or 60 minutes, the current task drifts across the screen in large text, together with a system notification.
+- **Reminders.** Every 15, 30 or 60 minutes, a banner with the current task and today's progress drifts across the screen, together with a system notification. A banner also greets you on a new day with how many tasks carried over.
 
 ![Reminder banner](docs/danmaku.png)
 
@@ -53,6 +54,7 @@ Requires macOS 13 or later. Runs natively on Apple silicon and Intel.
 |---|---|
 | Enter / leave edit mode | `⌥⌘P`, or menu bar ☑ → Edit Tasks |
 | Change a task's state | In edit mode, click the icon on the left: to do → in progress → done |
+| Give up a task | In edit mode or Plan History, right-click the task → Give Up |
 | Repeat a task daily | In edit mode, click 🔁 on the right of the task |
 | Add a task | In edit mode, type in the last row and press Return |
 | Reorder / delete | In edit mode, click ↑ ↓ ✕ |
@@ -91,6 +93,7 @@ cd FloatPlan && ./build.sh && open build/FloatPlan.app
 
 - [x] Daily plans and repeating tasks
 - [x] English interface
+- [x] Plan History window, carried-over tags, Give Up state
 - [ ] Multiple lists
 - [ ] Custom colors and font size
 - [ ] Launch at login
