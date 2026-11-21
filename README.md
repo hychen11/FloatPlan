@@ -1,71 +1,73 @@
 # FloatPlan
 
-**像弹幕一样浮在屏幕上的 Mac 每日计划。** 半透明、不挡鼠标、按完成情况自动配色，每天自动换新清单，定时用弹幕提醒你该做什么。
+**A daily planner that floats over your Mac screen like on-screen comments.** Translucent, click-through, color-coded by progress. It starts a fresh list every day and reminds you what to work on with a banner that drifts across the screen.
 
-[English](#english) · [下载](https://github.com/hychen11/FloatPlan/releases/latest)
+[中文说明](README.zh-CN.md) · [Download](https://github.com/hychen11/FloatPlan/releases/latest)
 
-![FloatPlan 预览：左边是默认样式，右边是背景全透明、文字 60%](docs/preview.png)
+![FloatPlan preview: default style on the left, transparent background with 60% text on the right](docs/preview.png)
 
-## 为什么做这个
+> The interface is currently in Chinese. The screenshots and the table below explain every control.
 
-市面上的悬浮便签/待办，大多是一个**普通的置顶窗口**：会挡住下面的内容，一不小心就点到；而且只分“完成 / 没完成”，看不出现在该做哪件。
+## Why
 
-FloatPlan 想要的是：今天的计划一直在视线里，但**像弹幕一样点不到、不打扰**，一眼就能看出“做完了什么、正在做什么、还剩什么”。
+Most floating sticky notes and to-do apps are just **regular always-on-top windows**. They cover what's underneath, you click them by accident, and they only know "done" or "not done", so you can't tell at a glance what you should be doing right now.
 
-## 功能
+FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks go straight through it to the window below, and one look tells you what's done, what's in progress, and what's left.
 
-- **三种状态，一眼看清**
-  - ✓ 已完成：灰色 + 删除线
-  - ▶ 进行中：黑色加粗
-  - ○ 未开始：蓝色
-- **按天的计划**：顶部显示日期（如 `2026.11.20 周五 · 2/5`），过了一天自动换成新清单
-  - 昨天**没完成**的任务自动带到今天，完成的留在历史里
-  - 标记为 🔁 **每日重复** 的任务（跑步、读书……）每天自动出现，状态重置
-  - 可设置“新的一天从几点开始”，熬夜时清单不会在零点突然换掉
-  - 菜单栏可查看最近 14 天的历史
-- **点穿，不误触**：鼠标直接穿过悬浮层，点到下面的窗口
-- **所有桌面都在**：切换桌面空间、全屏 App 里也能看到
-- **快捷键编辑**：`⌥⌘P` 切换编辑模式，改完再按一次回到点穿状态
-- **透明度滑块**：背景浓度、文字浓度分别调，拖动时实时预览
-- **弹幕提醒**：每 15 / 30 / 60 分钟，当前任务以大字弹幕从屏幕飘过，同时发系统通知
+## Features
 
-![弹幕提醒](docs/danmaku.png)
+- **Three states, easy to read**
+  - ✓ Done: gray, struck through
+  - ▶ In progress: bold black
+  - ○ To do: blue
+- **One list per day.** The header shows the date (e.g. `2026.11.20 周五 · 2/5`), and a new list starts automatically when the day changes:
+  - Unfinished tasks carry over to the new day; finished ones go to history.
+  - Tasks marked 🔁 **repeat daily** (exercise, reading…) come back every day, reset to to-do.
+  - Choose when a new day starts (midnight or 3–6 AM), so the list doesn't flip while you're still up.
+  - Browse the last 14 days from the menu bar.
+- **Click-through.** The overlay never blocks your clicks.
+- **Visible everywhere.** It shows on every desktop (Space) and over full-screen apps.
+- **Edit with a shortcut.** Press `⌥⌘P` to edit, press it again to go back to click-through mode.
+- **Opacity sliders.** Adjust the background and the text separately, with a live preview.
+- **Reminders.** Every 15, 30 or 60 minutes, the current task drifts across the screen in large text, together with a system notification.
 
-## 安装
+![Reminder banner](docs/danmaku.png)
 
-1. 到 [Releases](https://github.com/hychen11/FloatPlan/releases/latest) 下载 `FloatPlan.zip`，解压后把 `FloatPlan.app` 拖进「应用程序」。
-2. **第一次打开**会被系统拦下（因为没有付费开发者签名），任选一种方法放行：
-   - 打开「系统设置 → 隐私与安全性」，在下方找到 FloatPlan，点「仍要打开」。
-   - 或在终端运行：
+## Install
+
+1. Download `FloatPlan.zip` from [Releases](https://github.com/hychen11/FloatPlan/releases/latest), unzip it, and drag `FloatPlan.app` into Applications. No building required.
+2. **The first launch is blocked by macOS** because the app isn't signed with a paid Apple developer certificate. Allow it either way:
+   - Open **System Settings → Privacy & Security**, scroll down to FloatPlan, and click **Open Anyway**.
+   - Or run this in Terminal:
      ```bash
      xattr -dr com.apple.quarantine /Applications/FloatPlan.app
      ```
-3. 打开后悬浮层出现在屏幕右上角，菜单栏多一个 ☑ 图标。
+3. The overlay appears in the top-right corner of your screen, and a ☑ icon appears in the menu bar.
 
-要求 macOS 13 或更高，支持 Apple 芯片和 Intel。
+Requires macOS 13 or later. Runs natively on Apple silicon and Intel.
 
-## 使用
+## Usage
 
-| 操作 | 方法 |
+| What | How |
 |---|---|
-| 进入 / 退出编辑 | `⌥⌘P`，或菜单栏 ☑ → 编辑任务 |
-| 切换状态 | 编辑模式下点任务左侧图标：未开始 → 进行中 → 已完成 |
-| 设为每日重复 | 编辑模式下点任务右侧的 🔁 |
-| 添加任务 | 编辑模式最后一行输入，回车 |
-| 调顺序 / 删除 | 编辑模式下点 ↑ ↓ ✕ |
-| 移动位置 | 编辑模式下拖动顶部那一行 |
-| 调透明度 | 菜单栏 ☑ → 背景浓度 / 文字浓度滑块 |
-| 定时提醒 | 菜单栏 ☑ → 定时提醒 |
-| 一天从几点开始 | 菜单栏 ☑ → 新的一天开始于 |
-| 看以前的计划 | 菜单栏 ☑ → 历史记录 |
+| Enter / leave edit mode | `⌥⌘P`, or menu bar ☑ → 编辑任务 (Edit tasks) |
+| Change a task's state | In edit mode, click the icon on the left: to do → in progress → done |
+| Repeat a task daily | In edit mode, click 🔁 on the right of the task |
+| Add a task | In edit mode, type in the last row and press Return |
+| Reorder / delete | In edit mode, click ↑ ↓ ✕ |
+| Move the overlay | In edit mode, drag the top row |
+| Adjust opacity | Menu bar ☑ → 背景浓度 (background) / 文字浓度 (text) sliders |
+| Reminders | Menu bar ☑ → 定时提醒 (Reminders) |
+| When a new day starts | Menu bar ☑ → 新的一天开始于 (New day starts at) |
+| Past days | Menu bar ☑ → 历史记录 (History) |
 
-> 刘海屏 MacBook 上，如果菜单栏图标太多，☑ 可能被刘海挡住，用 `⌥⌘P` 也一样。
+> On a MacBook with a notch, the ☑ icon can end up hidden behind the notch when the menu bar is crowded. `⌥⌘P` works either way.
 
-数据保存在 `~/Library/Application Support/FloatPlan/plans.json`，纯本地，不联网、不收集任何数据。从 v0.1 升级时，原来的清单会自动变成当天的计划。
+Your data stays on your Mac in `~/Library/Application Support/FloatPlan/plans.json`. FloatPlan has no network features and collects no data. When you upgrade from v0.1, your existing list becomes today's plan.
 
-## 从源码编译
+## Build from source
 
-不需要 Xcode，只要命令行工具：
+Only for changing the code. You don't need Xcode, just the command line tools:
 
 ```bash
 xcode-select --install
@@ -79,21 +81,17 @@ git clone https://github.com/hychen11/FloatPlan.git
 cd FloatPlan && ./build.sh && open build/FloatPlan.app
 ```
 
-`./build.sh universal` 会同时编译 Apple 芯片和 Intel 版本。
+`./build.sh universal` builds for both Apple silicon and Intel.
 
-## 计划
+## Roadmap
 
-- [x] 按天的计划 + 每日重复任务
-- [ ] 多份清单切换
-- [ ] 自定义颜色和字号
-- [ ] 开机自动启动
-- [ ] 上架 Mac App Store
+- [x] Daily plans and repeating tasks
+- [ ] English interface
+- [ ] Multiple lists
+- [ ] Custom colors and font size
+- [ ] Launch at login
 
-欢迎提 [Issue](https://github.com/hychen11/FloatPlan/issues) 和 PR，觉得好用的话点个 ⭐ Star。
-
-## English
-
-FloatPlan is a translucent, click-through daily planner overlay for macOS. Tasks are colored by status (done / in progress / to do); each day starts a fresh list that carries over unfinished tasks and repeats tasks marked as daily. It stays on every Space and over full-screen apps, and can remind you of the current task with a bullet-comment style banner that flies across the screen. Press `⌥⌘P` to edit. Download from [Releases](https://github.com/hychen11/FloatPlan/releases/latest); see the install notes above for opening an unsigned app.
+Issues and pull requests are welcome. If you like FloatPlan, a ⭐ helps others find it.
 
 ## License
 
