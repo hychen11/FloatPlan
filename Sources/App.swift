@@ -34,7 +34,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         setupStatusItem()
         registerHotKey()
         scheduleReminder()
+        setupDayRollover()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    // MARK: - 按天切换
+
+    private var dayTimer: Timer?
+
+    private func setupDayRollover() {
+        store.onNewDay = { [weak self] carried in
+            self?.showDanmaku(carried > 0 ? "🌅 新的一天！带过来 \(carried) 项任务" : "🌅 新的一天！")
+        }
+        store.checkNewDay()   // 启动时（比如隔天才开电脑）
+
+        // 每分钟检查一次；从睡眠唤醒时也检查
+        let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.store.checkNewDay() }
+        RunLoop.main.add(t, forMode: .common)
+        dayTimer = t
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.store.checkNewDay() }
     }
 
     // MARK: - 悬浮层
@@ -178,10 +198,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         updateSliderLabels()
         menu.addItem(txItem)
 
+        let dayStart = NSMenuItem(title: "新的一天开始于", action: nil, keyEquivalent: "")
+        let dSub = NSMenu()
+        for h in [0, 3, 4, 5, 6] {
+            let it = NSMenuItem(title: h == 0 ? "零点" : "凌晨 \(h) 点", action: #selector(setDayStart(_:)), keyEquivalent: "")
+            it.target = self
+            it.tag = h
+            it.state = (h == DayClock.startHour) ? .on : .off
+            dSub.addItem(it)
+        }
+        dayStart.submenu = dSub
+        menu.addItem(dayStart)
+
+        menu.addItem(historyItem())
+
         menu.addItem(.separator())
-        let coffee = NSMenuItem(title: "☕ 请作者喝杯咖啡", action: #selector(openDonate), keyEquivalent: "")
-        coffee.target = self
-        menu.addItem(coffee)
         let gh = NSMenuItem(title: "GitHub 主页 / 反馈问题", action: #selector(openRepo), keyEquivalent: "")
         gh.target = self
         menu.addItem(gh)
@@ -192,9 +223,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func setReminder(_ sender: NSMenuItem) { reminderMinutes = sender.tag }
 
-    // 链接统一放在 Links.swift，改用户名只需改那一个文件
-    @objc private func openDonate() { if let u = URL(string: Links.donate) { NSWorkspace.shared.open(u) } }
     @objc private func openRepo() { if let u = URL(string: Links.repo) { NSWorkspace.shared.open(u) } }
+
+    @objc private func setDayStart(_ sender: NSMenuItem) {
+        DayClock.startHour = sender.tag
+        store.checkNewDay()
+    }
+
+    /// 历史记录：最近 14 天，每天一个子菜单列出当天的任务
+    private func historyItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "历史记录", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        if store.history.isEmpty {
+            sub.addItem(NSMenuItem(title: "还没有历史记录（明天开始会有）", action: nil, keyEquivalent: ""))
+        }
+        for d in store.history.prefix(14) {
+            let dayItem = NSMenuItem(
+                title: "\(DayClock.display(d.date, short: true))    完成 \(d.doneCount)/\(d.tasks.count)",
+                action: nil, keyEquivalent: "")
+            let tasksMenu = NSMenu()
+            for t in d.tasks {
+                tasksMenu.addItem(NSMenuItem(title: "\(statusSymbol(t.status))  \(t.title)", action: nil, keyEquivalent: ""))
+            }
+            dayItem.submenu = tasksMenu
+            sub.addItem(dayItem)
+        }
+        item.submenu = sub
+        return item
+    }
 
     // MARK: - 透明度滑块（嵌在菜单里，拖动时悬浮层实时变化）
 

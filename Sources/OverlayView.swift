@@ -49,7 +49,7 @@ struct OverlayView: View {
     @ViewBuilder private var header: some View {
         if ui.editing {
             HStack {
-                Text("⠿ 拖动这里移动位置")
+                Text("⠿ \(DayClock.display(store.day))  ·  拖动移动位置")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -58,7 +58,7 @@ struct OverlayView: View {
                     .keyboardShortcut(.defaultAction)
             }
         } else {
-            Text("今日计划  \(store.doneCount)/\(store.tasks.count)")
+            Text("\(DayClock.display(store.day))  ·  \(store.doneCount)/\(store.tasks.count)")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(Color(white: 0.35))
                 .shadow(color: .white, radius: 1)
@@ -75,6 +75,11 @@ struct OverlayView: View {
             Text(task.title)
                 .strikethrough(task.status == .done)
                 .fixedSize(horizontal: false, vertical: true)
+            if task.repeatDaily {
+                Image(systemName: "repeat")
+                    .font(.system(size: 10, weight: .semibold))
+                    .opacity(0.7)
+            }
         }
         .font(.system(size: task.status == .doing ? 16 : 14,
                       weight: task.status == .doing ? .bold : .regular))
@@ -104,6 +109,14 @@ struct OverlayView: View {
                 .font(.system(size: 14, weight: task.status == .doing ? .bold : .regular))
                 .foregroundColor(statusColor(task.status))
 
+            Button { store.toggleRepeat(task.id) } label: {
+                Image(systemName: "repeat")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(task.repeatDaily ? statusColor(.todo) : Color.gray.opacity(0.35))
+            }
+            .buttonStyle(.plain)
+            .help(task.repeatDaily ? "每日重复：已开启" : "设为每日重复（每天自动出现）")
+
             iconButton("chevron.up") { store.move(task.id, by: -1) }
             iconButton("chevron.down") { store.move(task.id, by: 1) }
             iconButton("xmark.circle.fill") { store.remove(task.id) }
@@ -126,7 +139,7 @@ struct OverlayView: View {
     }
 
     private var hint: some View {
-        Text("⌥⌘P 退出编辑 · 点左侧图标切换状态")
+        Text("⌥⌘P 退出编辑 · 点左侧图标切换状态 · 🔁 每日重复")
             .font(.system(size: 10))
             .foregroundColor(.secondary)
             .padding(.top, 2)
