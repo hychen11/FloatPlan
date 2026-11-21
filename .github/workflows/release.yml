@@ -29,7 +29,7 @@ jobs:
           set -o pipefail
           if ! ./build.sh universal 2>&1 | tee build.log; then
             # 把编译错误写成 annotation，不登录也能在网页/API 上看到
-            grep -E "error:" build.log | head -20 | while IFS= read -r line; do echo "::error::$line"; done
+            tail -n 15 build.log | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           fi
 
