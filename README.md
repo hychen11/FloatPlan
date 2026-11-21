@@ -6,8 +6,6 @@
 
 ![FloatPlan preview: default style on the left, transparent background with 60% text on the right](docs/preview.png)
 
-> The interface is currently in Chinese. The screenshots and the table below explain every control.
-
 ## Why
 
 Most floating sticky notes and to-do apps are just **regular always-on-top windows**. They cover what's underneath, you click them by accident, and they only know "done" or "not done", so you can't tell at a glance what you should be doing right now.
@@ -20,7 +18,7 @@ FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks 
   - ✓ Done: gray, struck through
   - ▶ In progress: bold black
   - ○ To do: blue
-- **One list per day.** The header shows the date (e.g. `2026.11.20 周五 · 2/5`), and a new list starts automatically when the day changes:
+- **One list per day.** The header shows the date (e.g. `2026.11.20 Fri · 2/5`), and a new list starts automatically when the day changes:
   - Unfinished tasks carry over to the new day; finished ones go to history.
   - Tasks marked 🔁 **repeat daily** (exercise, reading…) come back every day, reset to to-do.
   - Choose when a new day starts (midnight or 3–6 AM), so the list doesn't flip while you're still up.
@@ -29,6 +27,7 @@ FloatPlan keeps today's plan in view but **out of your way**: your mouse clicks 
 - **Visible everywhere.** It shows on every desktop (Space) and over full-screen apps.
 - **Edit with a shortcut.** Press `⌥⌘P` to edit, press it again to go back to click-through mode.
 - **Opacity sliders.** Adjust the background and the text separately, with a live preview.
+- **English and Chinese.** Follows your system language on first launch; switch any time from the menu bar.
 - **Reminders.** Every 15, 30 or 60 minutes, the current task drifts across the screen in large text, together with a system notification.
 
 ![Reminder banner](docs/danmaku.png)
@@ -50,16 +49,17 @@ Requires macOS 13 or later. Runs natively on Apple silicon and Intel.
 
 | What | How |
 |---|---|
-| Enter / leave edit mode | `⌥⌘P`, or menu bar ☑ → 编辑任务 (Edit tasks) |
+| Enter / leave edit mode | `⌥⌘P`, or menu bar ☑ → Edit Tasks |
 | Change a task's state | In edit mode, click the icon on the left: to do → in progress → done |
 | Repeat a task daily | In edit mode, click 🔁 on the right of the task |
 | Add a task | In edit mode, type in the last row and press Return |
 | Reorder / delete | In edit mode, click ↑ ↓ ✕ |
 | Move the overlay | In edit mode, drag the top row |
-| Adjust opacity | Menu bar ☑ → 背景浓度 (background) / 文字浓度 (text) sliders |
-| Reminders | Menu bar ☑ → 定时提醒 (Reminders) |
-| When a new day starts | Menu bar ☑ → 新的一天开始于 (New day starts at) |
-| Past days | Menu bar ☑ → 历史记录 (History) |
+| Adjust opacity | Menu bar ☑ → Background / Text sliders |
+| Reminders | Menu bar ☑ → Reminders |
+| When a new day starts | Menu bar ☑ → New Day Starts At |
+| Past days | Menu bar ☑ → History |
+| Language | Menu bar ☑ → 语言 / Language → 中文 or English |
 
 > On a MacBook with a notch, the ☑ icon can end up hidden behind the notch when the menu bar is crowded. `⌥⌘P` works either way.
 
@@ -86,7 +86,7 @@ cd FloatPlan && ./build.sh && open build/FloatPlan.app
 ## Roadmap
 
 - [x] Daily plans and repeating tasks
-- [ ] English interface
+- [x] English interface
 - [ ] Multiple lists
 - [ ] Custom colors and font size
 - [ ] Launch at login

@@ -68,11 +68,11 @@ enum DayClock {
         return keyFormatter.string(from: date.addingTimeInterval(TimeInterval(-startHour * 3600)))
     }
 
-    /// 2026.11.20 周五 / 11.20 周五
+    /// 2026.11.20 周五 / 11.20 周五（英文：2026.11.20 Fri）
     static func display(_ key: String, short: Bool = false) -> String {
         guard let d = keyFormatter.date(from: key) else { return key }
         let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
+        f.locale = Locale(identifier: L10n.lang == .zh ? "zh_CN" : "en_US")
         f.dateFormat = short ? "M.d EEE" : "yyyy.MM.dd EEE"
         return f.string(from: d)
     }
@@ -127,12 +127,13 @@ final class TaskStore: ObservableObject {
             tasks = old
         } else {
             day = DayClock.key()
+            // 第一次打开时的示例任务，按当时的语言
             tasks = [
-                PlanTask(title: "回复邮件", status: .done),
-                PlanTask(title: "整理会议纪要", status: .done),
-                PlanTask(title: "写方案初稿", status: .doing),
-                PlanTask(title: "跑步 30 分钟", repeatDaily: true),
-                PlanTask(title: "读书 20 页", repeatDaily: true),
+                PlanTask(title: tr("回复邮件", "Reply to emails"), status: .done),
+                PlanTask(title: tr("整理会议纪要", "Tidy up meeting notes"), status: .done),
+                PlanTask(title: tr("写方案初稿", "Write the first draft"), status: .doing),
+                PlanTask(title: tr("跑步 30 分钟", "Run for 30 minutes"), repeatDaily: true),
+                PlanTask(title: tr("读书 20 页", "Read 20 pages"), repeatDaily: true),
             ]
         }
         save()
@@ -212,6 +213,10 @@ final class TaskStore: ObservableObject {
 /// 界面状态 + 偏好设置
 final class UIState: ObservableObject {
     @Published var editing = false
+    /// 界面语言，切换时界面自动刷新
+    @Published var lang: Lang = L10n.lang {
+        didSet { L10n.lang = lang }
+    }
     @Published var bgOpacity: Double {
         didSet { UserDefaults.standard.set(bgOpacity, forKey: "bgOpacity") }
     }

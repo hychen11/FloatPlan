@@ -44,7 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     private func setupDayRollover() {
         store.onNewDay = { [weak self] carried in
-            self?.showDanmaku(carried > 0 ? "🌅 新的一天！带过来 \(carried) 项任务" : "🌅 新的一天！")
+            self?.showDanmaku(carried > 0
+                ? tr("🌅 新的一天！带过来 \(carried) 项任务",
+                     "🌅 A new day! \(carried) task\(carried == 1 ? "" : "s") carried over")
+                : tr("🌅 新的一天！", "🌅 A new day!"))
         }
         store.checkNewDay()   // 启动时（比如隔天才开电脑）
 
@@ -89,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         // 内容变化时自动调整大小，保持左上角不动
         store.$tasks.map { _ in () }
             .merge(with: ui.$editing.map { _ in () })
+            .merge(with: ui.$lang.map { _ in () })
             .receive(on: RunLoop.main)
             .sink { [weak self] in DispatchQueue.main.async { self?.resizeToFit() } }
             .store(in: &cancellables)
@@ -161,24 +165,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let edit = NSMenuItem(title: ui.editing ? "完成编辑" : "编辑任务", action: #selector(toggleEdit), keyEquivalent: "p")
+        let edit = NSMenuItem(title: ui.editing ? tr("完成编辑", "Done Editing") : tr("编辑任务", "Edit Tasks"), action: #selector(toggleEdit), keyEquivalent: "p")
         edit.keyEquivalentModifierMask = [.command, .option]
         edit.target = self
         menu.addItem(edit)
 
-        let vis = NSMenuItem(title: panel.isVisible ? "隐藏悬浮层" : "显示悬浮层", action: #selector(toggleVisible), keyEquivalent: "")
+        let vis = NSMenuItem(title: panel.isVisible ? tr("隐藏悬浮层", "Hide Overlay") : tr("显示悬浮层", "Show Overlay"), action: #selector(toggleVisible), keyEquivalent: "")
         vis.target = self
         menu.addItem(vis)
 
-        let now = NSMenuItem(title: "立即弹一条提醒", action: #selector(fireReminder), keyEquivalent: "")
+        let now = NSMenuItem(title: tr("立即弹一条提醒", "Remind Me Now"), action: #selector(fireReminder), keyEquivalent: "")
         now.target = self
         menu.addItem(now)
 
         menu.addItem(.separator())
 
-        let remind = NSMenuItem(title: "定时提醒", action: nil, keyEquivalent: "")
+        let remind = NSMenuItem(title: tr("定时提醒", "Reminders"), action: nil, keyEquivalent: "")
         let rSub = NSMenu()
-        for (title, m) in [("关闭", 0), ("每 15 分钟", 15), ("每 30 分钟", 30), ("每 60 分钟", 60)] {
+        for (title, m) in [(tr("关闭", "Off"), 0), (tr("每 15 分钟", "Every 15 Minutes"), 15),
+                           (tr("每 30 分钟", "Every 30 Minutes"), 30), (tr("每 60 分钟", "Every 60 Minutes"), 60)] {
             let it = NSMenuItem(title: title, action: #selector(setReminder(_:)), keyEquivalent: "")
             it.target = self
             it.tag = m
@@ -198,10 +203,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         updateSliderLabels()
         menu.addItem(txItem)
 
-        let dayStart = NSMenuItem(title: "新的一天开始于", action: nil, keyEquivalent: "")
+        let dayStart = NSMenuItem(title: tr("新的一天开始于", "New Day Starts At"), action: nil, keyEquivalent: "")
         let dSub = NSMenu()
         for h in [0, 3, 4, 5, 6] {
-            let it = NSMenuItem(title: h == 0 ? "零点" : "凌晨 \(h) 点", action: #selector(setDayStart(_:)), keyEquivalent: "")
+            let it = NSMenuItem(title: h == 0 ? tr("零点", "Midnight") : tr("凌晨 \(h) 点", "\(h) AM"), action: #selector(setDayStart(_:)), keyEquivalent: "")
             it.target = self
             it.tag = h
             it.state = (h == DayClock.startHour) ? .on : .off
@@ -212,18 +217,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
         menu.addItem(historyItem())
 
+        // 语言：标题两种语言都写，切错了也找得回来
+        let langItem = NSMenuItem(title: "语言 / Language", action: nil, keyEquivalent: "")
+        let lSub = NSMenu()
+        for (title, l) in [("中文", Lang.zh), ("English", Lang.en)] {
+            let it = NSMenuItem(title: title, action: #selector(setLanguage(_:)), keyEquivalent: "")
+            it.target = self
+            it.representedObject = l.rawValue
+            it.state = (ui.lang == l) ? .on : .off
+            lSub.addItem(it)
+        }
+        langItem.submenu = lSub
+        menu.addItem(langItem)
+
         menu.addItem(.separator())
-        let gh = NSMenuItem(title: "GitHub 主页 / 反馈问题", action: #selector(openRepo), keyEquivalent: "")
+        let gh = NSMenuItem(title: tr("GitHub 主页 / 反馈问题", "GitHub / Report an Issue"), action: #selector(openRepo), keyEquivalent: "")
         gh.target = self
         menu.addItem(gh)
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "退出 FloatPlan", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: tr("退出 FloatPlan", "Quit FloatPlan"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     @objc private func setReminder(_ sender: NSMenuItem) { reminderMinutes = sender.tag }
 
     @objc private func openRepo() { if let u = URL(string: Links.repo) { NSWorkspace.shared.open(u) } }
+
+    @objc private func setLanguage(_ sender: NSMenuItem) {
+        if let raw = sender.representedObject as? String, let l = Lang(rawValue: raw) { ui.lang = l }
+    }
 
     @objc private func setDayStart(_ sender: NSMenuItem) {
         DayClock.startHour = sender.tag
@@ -232,14 +254,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     /// 历史记录：最近 14 天，每天一个子菜单列出当天的任务
     private func historyItem() -> NSMenuItem {
-        let item = NSMenuItem(title: "历史记录", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: tr("历史记录", "History"), action: nil, keyEquivalent: "")
         let sub = NSMenu()
         if store.history.isEmpty {
-            sub.addItem(NSMenuItem(title: "还没有历史记录（明天开始会有）", action: nil, keyEquivalent: ""))
+            sub.addItem(NSMenuItem(title: tr("还没有历史记录（明天开始会有）", "No history yet (starts tomorrow)"), action: nil, keyEquivalent: ""))
         }
         for d in store.history.prefix(14) {
             let dayItem = NSMenuItem(
-                title: "\(DayClock.display(d.date, short: true))    完成 \(d.doneCount)/\(d.tasks.count)",
+                title: "\(DayClock.display(d.date, short: true))    \(tr("完成", "done")) \(d.doneCount)/\(d.tasks.count)",
                 action: nil, keyEquivalent: "")
             let tasksMenu = NSMenu()
             for t in d.tasks {
@@ -274,8 +296,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     private func updateSliderLabels() {
-        bgSliderLabel?.stringValue = "背景浓度  \(Int((ui.bgOpacity * 100).rounded()))%"
-        textSliderLabel?.stringValue = "文字浓度  \(Int((ui.textOpacity * 100).rounded()))%"
+        bgSliderLabel?.stringValue = "\(tr("背景浓度", "Background"))  \(Int((ui.bgOpacity * 100).rounded()))%"
+        textSliderLabel?.stringValue = "\(tr("文字浓度", "Text"))  \(Int((ui.textOpacity * 100).rounded()))%"
     }
 
     @objc private func bgSliderChanged(_ s: NSSlider) {
@@ -302,11 +324,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc func fireReminder() {
         guard let task = store.currentTask else {
-            showDanmaku("🎉 今天的任务全部完成了！")
+            showDanmaku(tr("🎉 今天的任务全部完成了！", "🎉 All done for today!"))
             return
         }
-        let prefix = task.status == .doing ? "⏰ 正在做" : "⏰ 该开始"
-        showDanmaku("\(prefix)：\(task.title)   （\(store.doneCount)/\(store.tasks.count)）")
+        let prefix = task.status == .doing ? tr("⏰ 正在做", "⏰ Now doing") : tr("⏰ 该开始", "⏰ Up next")
+        let progress = "\(store.doneCount)/\(store.tasks.count)"
+        showDanmaku(tr("\(prefix)：\(task.title)   （\(progress)）",
+                       "\(prefix): \(task.title)   (\(progress))"))
 
         let content = UNMutableNotificationContent()
         content.title = prefix

@@ -49,12 +49,12 @@ struct OverlayView: View {
     @ViewBuilder private var header: some View {
         if ui.editing {
             HStack {
-                Text("⠿ \(DayClock.display(store.day))  ·  拖动移动位置")
+                Text("⠿ \(DayClock.display(store.day))  ·  \(tr("拖动移动位置", "drag to move"))")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay(DragHandle())
-                Button("完成") { ui.toggleEdit() }
+                Button(tr("完成", "Done")) { ui.toggleEdit() }
                     .keyboardShortcut(.defaultAction)
             }
         } else {
@@ -102,9 +102,9 @@ struct OverlayView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("点击切换：未开始 → 进行中 → 已完成")
+            .help(tr("点击切换：未开始 → 进行中 → 已完成", "Click to change: to do → in progress → done"))
 
-            TextField("任务", text: titleBinding(task.id))
+            TextField(tr("任务", "Task"), text: titleBinding(task.id))
                 .textFieldStyle(.plain)
                 .font(.system(size: 14, weight: task.status == .doing ? .bold : .regular))
                 .foregroundColor(statusColor(task.status))
@@ -115,7 +115,9 @@ struct OverlayView: View {
                     .foregroundColor(task.repeatDaily ? statusColor(.todo) : Color.gray.opacity(0.35))
             }
             .buttonStyle(.plain)
-            .help(task.repeatDaily ? "每日重复：已开启" : "设为每日重复（每天自动出现）")
+            .help(task.repeatDaily
+                  ? tr("每日重复：已开启", "Repeats daily: on")
+                  : tr("设为每日重复（每天自动出现）", "Repeat daily (shows up every day)"))
 
             iconButton("chevron.up") { store.move(task.id, by: -1) }
             iconButton("chevron.down") { store.move(task.id, by: 1) }
@@ -127,7 +129,7 @@ struct OverlayView: View {
         HStack(spacing: 6) {
             Text("+").font(.system(size: 14, weight: .bold))
                 .foregroundColor(.secondary).frame(width: 18)
-            TextField("添加任务，回车确认", text: $newTitle)
+            TextField(tr("添加任务，回车确认", "Add a task, press Return"), text: $newTitle)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .onSubmit {
@@ -139,7 +141,8 @@ struct OverlayView: View {
     }
 
     private var hint: some View {
-        Text("⌥⌘P 退出编辑 · 点左侧图标切换状态 · 🔁 每日重复")
+        Text(tr("⌥⌘P 退出编辑 · 点左侧图标切换状态 · 🔁 每日重复",
+                "⌥⌘P to finish · click the left icon to change state · 🔁 repeat daily"))
             .font(.system(size: 10))
             .foregroundColor(.secondary)
             .padding(.top, 2)
